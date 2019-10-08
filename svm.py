@@ -162,4 +162,5 @@ if __name__ == "__main__":
     if choice == 3:
         X, Y = get_data()
         result = find_best_hyparms(X,Y)
-        plot_result(result)
+        print(result)
+        # plot_result(result)
