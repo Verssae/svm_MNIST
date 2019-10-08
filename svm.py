@@ -55,7 +55,7 @@ def get_data(dataset="training"):
     X = df_train.iloc[:, :-1]
     Y = df_train.iloc[:, -1]
 
-    X = scale(X)
+    # X = X / 255.0
     return X, Y
 
 
@@ -63,9 +63,10 @@ def train_model(X, Y):
     print("[Holdout CV]")
     x_train, x_test, y_train, y_test = train_test_split(
         X, Y, train_size=0.70, random_state=13)
-
+    x_train = scale(x_train)
+    x_test = scale(x_test)
     # Non-Liner SVM
-    svm_rbf = svm.SVC(kernel='rbf', C=1, gamma=1e-3, verbose=False)
+    svm_rbf = svm.SVC(kernel='linear', C=1, gamma=1e-3, verbose=False)
     print("[Training model]")
     svm_rbf.fit(x_train, y_train)
     print("[Evaluating model]")
