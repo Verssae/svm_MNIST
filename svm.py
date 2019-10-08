@@ -5,20 +5,20 @@ import pandas as pd
 import struct
 import pickle
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import scale
+from sklearn.preprocessing import scale, StandardScaler
 from sklearn import svm, metrics
 from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV, cross_validate
-
+from sklearn.pipeline import Pipeline
 
 
 import joblib
 
 
 def read(dataset="training", path="MNIST"):
-    if dataset is "training":
+    if dataset is "testing":
         fname_img = os.path.join(path, 'train-images.idx3-ubyte')
         fname_lbl = os.path.join(path, 'train-labels.idx1-ubyte')
-    elif dataset is "testing":
+    elif dataset is "training":
         fname_img = os.path.join(path, 't10k-images.idx3-ubyte')
         fname_lbl = os.path.join(path, 't10k-labels.idx1-ubyte')
     else:
@@ -41,47 +41,38 @@ def read(dataset="training", path="MNIST"):
 
 
 def main():
-    X, Y = get_data("testing")
+    X, Y = get_data()
     train_model(X, Y)
 
 
 def get_data(dataset="training"):
     print("[Reading dataset]")
     tr = list(read(dataset))
+    df = pd.DataFrame(tr)
+    # print(df.head())
+    print(df)
+    print((df.iloc[:,  1]).to_numpy().reshape(1,784,10000))
+    # print("[Rescaling dataset]")
+    # data_train = [x[1].flatten() for x in tr]
+    # df_train = pd.DataFrame(data_train)
+    # print(df_train.describe())
+    # df_train["label"] = [x[0] for x in tr]
 
-    print("[Rescaling dataset]")
-    data_train = [x[1].flatten() for x in tr]
-    df_train = pd.DataFrame(data_train)
-    print(df_train.describe())
-    df_train["label"] = [x[0] for x in tr]
+    # X = df_train.iloc[:, :-1]
+    # Y = df_train.iloc[:, -1]
 
-    X = df_train.iloc[:, :-1]
-    Y = df_train.iloc[:, -1]
-
-    X = X / 255.0
-    return X, Y
+    # X = X / 255.0
+    # return X, Y
 
 
 def train_model(X, Y):
-    print("[Stratified K-Fold CV]")
-    svmc = svm.SVC(kernel='linear', C=1, gamma=1e-3, verbose=False)
+    print("[Training Model]")
+    scalar = StandardScaler()
+    clf = svm.SVC(kernel='linear', C=1, gamma=1e-3)
+    pipeline = Pipeline([('transformer', scalar), ('estimator', clf)])
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
-    print("[Training model]")
-    scores = cross_validate(svmc, X, Y, cv=skf, n_jobs=-1)
-    # x_train, x_test, y_train, y_test = train_test_split(
-    #     X, Y, train_size=0.70, random_state=13)
-    # x_train = scale(x_train)
-    # x_test = scale(x_test)
-    print(scores)
-    
-    # svmc.fit(x_train, y_train)
-    # print("[Evaluating model]")
-    # predictions = svmc.predict(x_test)
-    # target_names = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    # result = metrics.classification_report(
-    #     y_true=y_test, y_pred=predictions, target_names=target_names)
-    # print(result)
-
+    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1)
+    print(scores.mean())
     # print("[Saving model]")
     # joblib.dump(svmc, 'saved_model.pkl')
 
@@ -163,12 +154,13 @@ def plot_result(result):
     plt.show()
 
 if __name__ == "__main__":
-    choice = int(input("1: train 2: load model and test 3: finding hyparams: "))
-    if choice == 1:
-        main()
-    if choice == 2:
-        test()
-    if choice == 3:
-        X, Y = get_data()
-        result = find_best_hyparms(X,Y)
-        plot_result(result)
+    get_data()
+    # choice = int(input("1: train 2: load model and test 3: finding hyparams: "))
+    # if choice == 1:
+    #     main()
+    # if choice == 2:
+    #     test()
+    # if choice == 3:
+    #     X, Y = get_data()
+    #     result = find_best_hyparms(X,Y)
+    #     plot_result(result)
