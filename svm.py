@@ -5,7 +5,7 @@ import pandas as pd
 import struct
 import pickle
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import scale, StandardScaler
+from sklearn.preprocessing import scale, StandardScaler, Normalizer
 from sklearn import svm, metrics
 from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV, cross_validate
 from sklearn.pipeline import Pipeline
@@ -31,9 +31,9 @@ def read(dataset="training", path="MNIST"):
 
     with open(fname_img, 'rb') as fimg:
         magic, num, rows, cols = struct.unpack(">IIII", fimg.read(16))
-        img = np.fromfile(fimg, dtype=np.uint8).reshape(len(lbl), rows, cols)
+        img = np.fromfile(fimg, dtype=np.uint8).reshape(len(lbl), rows * cols)
 
-    def get_img(idx): return (lbl[idx], img[idx])
+    def get_img(idx): return np.concatenate(([lbl[idx]],list(img[idx])), axis=0)
 
     # Create an iterator which returns each image in turn
     for i in range(len(lbl)):
@@ -48,30 +48,26 @@ def main():
 def get_data(dataset="training"):
     print("[Reading dataset]")
     tr = list(read(dataset))
-    df = pd.DataFrame(tr)
-    # print(df.head())
-    print(df)
-    print((df.iloc[:,  1]).to_numpy().reshape(1,784,10000))
-    # print("[Rescaling dataset]")
-    # data_train = [x[1].flatten() for x in tr]
-    # df_train = pd.DataFrame(data_train)
-    # print(df_train.describe())
-    # df_train["label"] = [x[0] for x in tr]
-
-    # X = df_train.iloc[:, :-1]
-    # Y = df_train.iloc[:, -1]
+    columns = ["label"] + [f'#{x}' for x in range(784)]
+    df = pd.DataFrame(tr, columns=columns)
+    print(df.describe())
+    
+    X = df.iloc[:, 1:]
+    Y = df.iloc[:, 0]
 
     # X = X / 255.0
-    # return X, Y
+    return X, Y
 
 
 def train_model(X, Y):
     print("[Training Model]")
-    scalar = StandardScaler()
-    clf = svm.SVC(kernel='linear', C=1, gamma=1e-3)
-    pipeline = Pipeline([('transformer', scalar), ('estimator', clf)])
+    normal = Normalizer()
+    # scalar = StandardScaler()
+    clf = svm.SVC(kernel='linear')
+    pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
+    pipeline.set_params(estimator__C=1, estimator__gamma=1e-3)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
-    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1)
+    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1, verbose=True)
     print(scores.mean())
     # print("[Saving model]")
     # joblib.dump(svmc, 'saved_model.pkl')
@@ -90,14 +86,17 @@ def test():
 
 
 def find_best_hyparms(X, Y):
-    parameters = {'C': [1, 10, 100],
-                  'gamma': [1e-2, 1e-3, 1e-4]}
+    normal = Normalizer()
+    clf = svm.SVC(kernel='linear')
+    pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
+    
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+    parameters = {'estimator__C': [1, 10, 100],
+                  'estimator__gamma': [1e-2, 1e-3, 1e-4]}
 
     print("[Finding hyparmas]")
-    svc_grid_search = svm.SVC(kernel="linear")
 
-    clf = GridSearchCV(svc_grid_search, param_grid=parameters,
-                       scoring='accuracy', return_train_score=True)
+    clf = GridSearchCV(pipeline, param_grid=parameters, n_jobs=-1, return_train_score=True, cv=skf, verbose=True)
     clf.fit(X, Y)
 
     cv_results = pd.DataFrame(clf.cv_results_)
@@ -154,13 +153,13 @@ def plot_result(result):
     plt.show()
 
 if __name__ == "__main__":
-    get_data()
-    # choice = int(input("1: train 2: load model and test 3: finding hyparams: "))
-    # if choice == 1:
-    #     main()
-    # if choice == 2:
-    #     test()
-    # if choice == 3:
-    #     X, Y = get_data()
-    #     result = find_best_hyparms(X,Y)
-    #     plot_result(result)
+    # get_data()
+    choice = int(input("1: train 2: load model and test 3: finding hyparams: "))
+    if choice == 1:
+        main()
+    if choice == 2:
+        test()
+    if choice == 3:
+        X, Y = get_data()
+        result = find_best_hyparms(X,Y)
+        plot_result(result)
