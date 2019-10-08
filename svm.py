@@ -7,7 +7,9 @@ import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import scale
 from sklearn import svm, metrics
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV, cross_validate
+
+
 
 import joblib
 
@@ -39,7 +41,7 @@ def read(dataset="training", path="MNIST"):
 
 
 def main():
-    X, Y = get_data()
+    X, Y = get_data("testing")
     train_model(X, Y)
 
 
@@ -50,34 +52,38 @@ def get_data(dataset="training"):
     print("[Rescaling dataset]")
     data_train = [x[1].flatten() for x in tr]
     df_train = pd.DataFrame(data_train)
+    print(df_train.describe())
     df_train["label"] = [x[0] for x in tr]
 
     X = df_train.iloc[:, :-1]
     Y = df_train.iloc[:, -1]
 
-    # X = X / 255.0
+    X = X / 255.0
     return X, Y
 
 
 def train_model(X, Y):
-    print("[Holdout CV]")
-    x_train, x_test, y_train, y_test = train_test_split(
-        X, Y, train_size=0.70, random_state=13)
-    x_train = scale(x_train)
-    x_test = scale(x_test)
-    # Non-Liner SVM
-    svm_rbf = svm.SVC(kernel='linear', C=1, gamma=1e-3, verbose=False)
+    print("[Stratified K-Fold CV]")
+    svmc = svm.SVC(kernel='linear', C=1, gamma=1e-3, verbose=False)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
     print("[Training model]")
-    svm_rbf.fit(x_train, y_train)
-    print("[Evaluating model]")
-    predictions = svm_rbf.predict(x_test)
-    target_names = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    result = metrics.classification_report(
-        y_true=y_test, y_pred=predictions, target_names=target_names)
-    print(result)
+    scores = cross_validate(svmc, X, Y, cv=skf, n_jobs=-1)
+    # x_train, x_test, y_train, y_test = train_test_split(
+    #     X, Y, train_size=0.70, random_state=13)
+    # x_train = scale(x_train)
+    # x_test = scale(x_test)
+    print(scores)
+    
+    # svmc.fit(x_train, y_train)
+    # print("[Evaluating model]")
+    # predictions = svmc.predict(x_test)
+    # target_names = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    # result = metrics.classification_report(
+    #     y_true=y_test, y_pred=predictions, target_names=target_names)
+    # print(result)
 
-    print("[Saving model]")
-    joblib.dump(svm_rbf, 'saved_model.pkl')
+    # print("[Saving model]")
+    # joblib.dump(svmc, 'saved_model.pkl')
 
 
 def test():
@@ -97,7 +103,7 @@ def find_best_hyparms(X, Y):
                   'gamma': [1e-2, 1e-3, 1e-4]}
 
     print("[Finding hyparmas]")
-    svc_grid_search = svm.SVC(kernel="rbf")
+    svc_grid_search = svm.SVC(kernel="linear")
 
     clf = GridSearchCV(svc_grid_search, param_grid=parameters,
                        scoring='accuracy', return_train_score=True)
