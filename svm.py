@@ -66,7 +66,7 @@ def train_model(X, Y):
     clf = svm.SVC(kernel='linear')
     pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
     pipeline.set_params(estimator__C=1, estimator__gamma=1e-3)
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
     scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1, verbose=True)
     print(scores.mean())
     # print("[Saving model]")
@@ -90,7 +90,7 @@ def find_best_hyparms(X, Y):
     clf = svm.SVC(kernel='linear')
     pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
     
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
     parameters = {'estimator__C': [1, 10, 100],
                   'estimator__gamma': [1e-2, 1e-3, 1e-4]}
 
@@ -162,5 +162,10 @@ if __name__ == "__main__":
     if choice == 3:
         X, Y = get_data()
         result = find_best_hyparms(X,Y)
+        f = open('result.txt', 'w')
+        f.write(result.to_string())
+        f.write("\nDESCR:\n")
+        f.write(result.describe().to_string())
         print(result)
+        print(result.describe())
         # plot_result(result)
