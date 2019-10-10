@@ -62,12 +62,12 @@ def get_data(dataset="training"):
 def train_model(X, Y):
     print("[Training Model]")
     normal = Normalizer()
-    # scalar = StandardScaler()
-    clf = svm.SVC(kernel='linear')
-    pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
-    pipeline.set_params(estimator__C=1, estimator__gamma=1e-3)
+    scalar = StandardScaler()
+    clf = svm.LinearSVC(dual=False, max_iter=5000)
+    pipeline = Pipeline([('transf_normal',normal),('trnsf',scalar),  ('estimator', clf)])
+    pipeline.set_params(estimator__C=1)
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
-    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1, verbose=True)
+    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1, verbose=True, scoring="f1_macro")
     print(scores.mean())
     # print("[Saving model]")
     # joblib.dump(svmc, 'saved_model.pkl')
@@ -91,8 +91,7 @@ def find_best_hyparms(X, Y):
     pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
     
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
-    parameters = {'estimator__C': [1, 10, 100],
-                  'estimator__gamma': [1e-2, 1e-3, 1e-4]}
+    parameters = {'estimator__C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
 
     print("[Finding hyparmas]")
 
@@ -162,10 +161,12 @@ if __name__ == "__main__":
     if choice == 3:
         X, Y = get_data()
         result = find_best_hyparms(X,Y)
-        f = open('result.txt', 'w')
-        f.write(result.to_string())
-        f.write("\nDESCR:\n")
-        f.write(result.describe().to_string())
-        print(result)
-        print(result.describe())
+        result.to_csv('result_hyparams.csv')
+        result.to_csv('result_hyparams_descr.csv')
+        # f = open('result.txt', 'w')
+        # f.write(result.to_string())
+        # f.write("\nDESCR:\n")
+        # f.write(result.describe().to_string())
+        # print(result)
+        # print(result.describe())
         # plot_result(result)
