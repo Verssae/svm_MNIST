@@ -63,14 +63,19 @@ def train_model(X, Y):
     print("[Training Model]")
     normal = Normalizer()
     scalar = StandardScaler()
-    clf = svm.LinearSVC(dual=False, max_iter=5000)
-    pipeline = Pipeline([('transf_normal',normal),('trnsf',scalar),  ('estimator', clf)])
-    pipeline.set_params(estimator__C=1)
+    clf = svm.SVC(kernel='linear', verbose=True)
+    pipeline = Pipeline([('transf_normal',normal), ('estimator', clf)])
+    pipeline.set_params(estimator__C=0.01)
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
-    scores = cross_val_score(pipeline, X, Y, cv=skf, n_jobs=-1, verbose=True, scoring="f1_macro")
-    print(scores.mean())
-    # print("[Saving model]")
-    # joblib.dump(svmc, 'saved_model.pkl')
+    scores = cross_validate(pipeline, X, Y, cv=skf, n_jobs=-1,  scoring=["accuracy", "f1_macro"])
+    
+    scores = pd.DataFrame(scores)
+    print(scores)
+    scores.to_csv('scores.csv')
+    scores.describe().to_csv('scores_dscr.csv')
+    print("[Saving model]")
+    fitted_pipeline = pipeline.fit(X, Y)
+    joblib.dump(fitted_pipeline, 'saved_model.pkl')
 
 
 def test():
@@ -87,18 +92,22 @@ def test():
 
 def find_best_hyparms(X, Y):
     normal = Normalizer()
-    clf = svm.SVC(kernel='linear')
-    pipeline = Pipeline([('trnsf_normal',normal),  ('estimator', clf)])
+    scalar = StandardScaler()
+    clf = svm.SVC(kernel='linear', verbose=True)
+    pipeline = Pipeline([('transf_normal',normal), ('estimator', clf)])
     
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
     parameters = {'estimator__C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
 
     print("[Finding hyparmas]")
 
-    clf = GridSearchCV(pipeline, param_grid=parameters, n_jobs=-1, return_train_score=True, cv=skf, verbose=True)
+    clf = GridSearchCV(pipeline, param_grid=parameters, n_jobs=-1, cv=skf)
     clf.fit(X, Y)
 
     cv_results = pd.DataFrame(clf.cv_results_)
+    print(clf.best_params_)
+    print(clf.best_estimator_)
+    print(clf.best_score_)
     return cv_results
 
 
