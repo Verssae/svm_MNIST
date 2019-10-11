@@ -13,6 +13,7 @@ from sklearn.pipeline import Pipeline
 
 import joblib
 
+name = "10_scalar"
 
 def read(dataset="training", path="MNIST"):
     if dataset is "testing":
@@ -33,7 +34,8 @@ def read(dataset="training", path="MNIST"):
         magic, num, rows, cols = struct.unpack(">IIII", fimg.read(16))
         img = np.fromfile(fimg, dtype=np.uint8).reshape(len(lbl), rows * cols)
 
-    def get_img(idx): return np.concatenate(([lbl[idx]],list(img[idx])), axis=0)
+    def get_img(idx): return np.concatenate(
+        ([lbl[idx]], list(img[idx])), axis=0)
 
     # Create an iterator which returns each image in turn
     for i in range(len(lbl)):
@@ -51,7 +53,7 @@ def get_data(dataset="training"):
     columns = ["label"] + [f'#{x}' for x in range(784)]
     df = pd.DataFrame(tr, columns=columns)
     print(df.describe())
-    
+
     X = df.iloc[:, 1:]
     Y = df.iloc[:, 0]
 
@@ -63,45 +65,56 @@ def train_model(X, Y):
     print("[Training Model]")
     normal = Normalizer()
     scalar = StandardScaler()
-    clf = svm.SVC(kernel='linear', verbose=True)
-    pipeline = Pipeline([('transf_normal',normal), ('estimator', clf)])
-    pipeline.set_params(estimator__C=0.01)
+    clf = svm.SVC(kernel='linear')
+    pipeline = Pipeline(
+        [ ('transf', normal),('transf2',scalar),('estimator', clf)])
+    pipeline.set_params(estimator__C=1)
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
-    scores = cross_validate(pipeline, X, Y, cv=skf, n_jobs=-1,  scoring=["accuracy", "f1_macro"])
-    
+    scores = cross_validate(pipeline, X, Y, cv=skf,
+                            n_jobs=-1,  scoring=["accuracy", "f1_macro"])
+
     scores = pd.DataFrame(scores)
     print(scores)
-    scores.to_csv('scores.csv')
-    scores.describe().to_csv('scores_dscr.csv')
-    print("[Saving model]")
+    scores.to_csv(f'scores_{name}.csv')
+    scores.describe().to_csv(f'scores_dscr_{name}.csv')
+
     fitted_pipeline = pipeline.fit(X, Y)
-    joblib.dump(fitted_pipeline, 'saved_model.pkl')
+    print("[Saving model]")
+    joblib.dump(fitted_pipeline, f'saved_model_{name}.pkl')
+
+
 
 
 def test():
     X, Y = get_data("testing")
     print("[Loading model]")
-    loaded_model = joblib.load('saved_model.pkl')
+    loaded_model = joblib.load(f'saved_model_{name}.pkl')
     print("[Predicting]")
     predictions = loaded_model.predict(X)
     target_names = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
     result = metrics.classification_report(
         y_true=Y, y_pred=predictions, target_names=target_names)
     print(result)
+    f = open(f'test_score_{name}.txt', 'w')
+    f.write(result)
+    f.close()
+
 
 
 def find_best_hyparms(X, Y):
     normal = Normalizer()
     scalar = StandardScaler()
-    clf = svm.SVC(kernel='linear', verbose=True)
-    pipeline = Pipeline([('transf_normal',normal), ('estimator', clf)])
-    
+    clf = svm.SVC(kernel='linear')
+    pipeline = Pipeline(
+        [  ('transf2',scalar), ('estimator', clf)])
+
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
     parameters = {'estimator__C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
 
     print("[Finding hyparmas]")
 
-    clf = GridSearchCV(pipeline, param_grid=parameters, n_jobs=-1, cv=skf)
+    clf = GridSearchCV(pipeline, param_grid=parameters,
+                       n_jobs=-1, cv=skf, verbose=True)
     clf.fit(X, Y)
 
     cv_results = pd.DataFrame(clf.cv_results_)
@@ -111,67 +124,20 @@ def find_best_hyparms(X, Y):
     return cv_results
 
 
-def plot_result(result):
-    # converting C to numeric type for plotting on x-axis
-    result['param_C'] = result['param_C'].astype('int')
-
-    # # plotting
-    plt.figure(figsize=(16, 6))
-
-    # subplot 1/3
-    plt.subplot(131)
-    gamma_01 = result[result['param_gamma'] == 0.01]
-
-    plt.plot(gamma_01["param_C"], gamma_01["mean_test_score"])
-    plt.plot(gamma_01["param_C"], gamma_01["mean_train_score"])
-    plt.xlabel('C')
-    plt.ylabel('Accuracy')
-    plt.title("Gamma=0.01")
-    plt.ylim([0.60, 1])
-    plt.legend(['test accuracy', 'train accuracy'], loc='lower right')
-    plt.xscale('log')
-
-    # subplot 2/3
-    plt.subplot(132)
-    gamma_001 = result[result['param_gamma'] == 0.001]
-
-    plt.plot(gamma_001["param_C"], gamma_001["mean_test_score"])
-    plt.plot(gamma_001["param_C"], gamma_001["mean_train_score"])
-    plt.xlabel('C')
-    plt.ylabel('Accuracy')
-    plt.title("Gamma=0.001")
-    plt.ylim([0.60, 1])
-    plt.legend(['test accuracy', 'train accuracy'], loc='lower right')
-    plt.xscale('log')
-
-
-    # subplot 3/3
-    plt.subplot(133)
-    gamma_0001 = result[result['param_gamma'] == 0.0001]
-
-    plt.plot(gamma_0001["param_C"], gamma_0001["mean_test_score"])
-    plt.plot(gamma_0001["param_C"], gamma_0001["mean_train_score"])
-    plt.xlabel('C')
-    plt.ylabel('Accuracy')
-    plt.title("Gamma=0.0001")
-    plt.ylim([0.60, 1])
-    plt.legend(['test accuracy', 'train accuracy'], loc='lower right')
-    plt.xscale('log')
-
-    plt.show()
-
 if __name__ == "__main__":
     # get_data()
-    choice = int(input("1: train 2: load model and test 3: finding hyparams: "))
+    print(f"{name}")
+    choice = int(
+        input("1: train 2: load model and test 3: finding hyparams: "))
     if choice == 1:
         main()
     if choice == 2:
         test()
     if choice == 3:
         X, Y = get_data()
-        result = find_best_hyparms(X,Y)
-        result.to_csv('result_hyparams.csv')
-        result.to_csv('result_hyparams_descr.csv')
+        result = find_best_hyparms(X, Y)
+        result.to_csv(f'result_hyparams_{name}.csv')
+        # result.to_csv('result_hyparams_descr.csv')
         # f = open('result.txt', 'w')
         # f.write(result.to_string())
         # f.write("\nDESCR:\n")
