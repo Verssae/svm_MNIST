@@ -13,13 +13,13 @@ from sklearn.pipeline import Pipeline
 
 import joblib
 
-name = "10_scalar"
+name = "5_normal_60000_c=0.01"
 
 def read(dataset="training", path="MNIST"):
-    if dataset is "testing":
+    if dataset is "training":
         fname_img = os.path.join(path, 'train-images.idx3-ubyte')
         fname_lbl = os.path.join(path, 'train-labels.idx1-ubyte')
-    elif dataset is "training":
+    elif dataset is "testing":
         fname_img = os.path.join(path, 't10k-images.idx3-ubyte')
         fname_lbl = os.path.join(path, 't10k-labels.idx1-ubyte')
     else:
@@ -67,9 +67,9 @@ def train_model(X, Y):
     scalar = StandardScaler()
     clf = svm.SVC(kernel='linear')
     pipeline = Pipeline(
-        [ ('transf', normal),('transf2',scalar),('estimator', clf)])
-    pipeline.set_params(estimator__C=1)
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
+        [ ('transf', normal),('estimator', clf)])
+    pipeline.set_params(estimator__C=0.01)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
     scores = cross_validate(pipeline, X, Y, cv=skf,
                             n_jobs=-1,  scoring=["accuracy", "f1_macro"])
 
@@ -104,11 +104,11 @@ def test():
 def find_best_hyparms(X, Y):
     normal = Normalizer()
     scalar = StandardScaler()
-    clf = svm.SVC(kernel='linear')
+    clf = svm.SVC(kernel='linear', verbose=True)
     pipeline = Pipeline(
-        [  ('transf2',scalar), ('estimator', clf)])
+        [ ('transf', normal), ('transf2',scalar), ('estimator', clf)])
 
-    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1)
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
     parameters = {'estimator__C': [0.001, 0.01, 0.1, 1, 10, 100, 1000]}
 
     print("[Finding hyparmas]")
