@@ -13,7 +13,7 @@ from sklearn.pipeline import Pipeline
 
 import joblib
 
-name = "5_normal_60000_c=0.01"
+name = "5_normal_60000_c=1000"
 
 def read(dataset="training", path="MNIST"):
     if dataset is "training":
@@ -68,7 +68,7 @@ def train_model(X, Y):
     clf = svm.SVC(kernel='linear')
     pipeline = Pipeline(
         [ ('transf', normal),('estimator', clf)])
-    pipeline.set_params(estimator__C=0.01)
+    pipeline.set_params(estimator__C=1000)
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
     scores = cross_validate(pipeline, X, Y, cv=skf,
                             n_jobs=-1,  scoring=["accuracy", "f1_macro"])
